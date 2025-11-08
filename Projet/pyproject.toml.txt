@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "permuted_mnist_challenge"
+version = "1.0.0"
+authors = [
+    { name="Ayoub OULAD ALI", email="ayoub.oulad_ali@etu.sorbonne-universite.fr" }]
+description = "Agents pour le challenge Permuted MNIST - M2"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+
+dependencies = [
+    "numpy",
+    "torch",
+    "scikit-learn",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "jupyter",
+    "tensorflow" # Optionnel, pour le dataset original dans le rapport
+]
+
+[project.urls]
+Homepage = "https://github.com/Ayouboa30/PermutedMnist2025"
+Issues = "https://github.com/votre_utilisateur/PermutedMnist2025/issues"

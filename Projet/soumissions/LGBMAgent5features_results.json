@@ -1,0 +1,12 @@
+{
+    "agent_name": "LGBMAgent5features",
+    "mean_accuracy": 0.9775,
+    "std_accuracy": 0.0,
+    "total_time": 143.0064194202423,
+    "accuracies_per_task": [
+        0.9775
+    ],
+    "times_per_task": [
+        143.0064194202423
+    ]
+}

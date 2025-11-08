@@ -1,0 +1,12 @@
+{
+    "agent_name": "MLPAgentBase",
+    "mean_accuracy": 0.9822,
+    "std_accuracy": 0.0,
+    "total_time": 66.40132570266724,
+    "accuracies_per_task": [
+        0.9822
+    ],
+    "times_per_task": [
+        66.40132570266724
+    ]
+}

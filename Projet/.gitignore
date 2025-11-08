@@ -1,0 +1,13 @@
+# Fichier pour ignorer les fichiers temporaires de Python et Jupyter
+
+# Dossiers de cache Python
+__pycache__/
+*.pyc
+
+# Dossiers de checkpoints Jupyter
+.ipynb_checkpoints/
+
+
+
+# Fichiers temporaires
+structure.txt
