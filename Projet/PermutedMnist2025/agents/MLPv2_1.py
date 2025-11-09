@@ -5,51 +5,11 @@ import time
 from torch.utils.data import DataLoader, TensorDataset
 from scipy import stats
 from sklearn.preprocessing import RobustScaler
+import os
+import joblib
 
-# ================================================================
-#  SUPER FEATURES v21 : Histogramme + Quantiles + Spatiales
-# ================================================================
-def create_super_features(X_flat: np.ndarray) -> np.ndarray:
-    """Crée les features globales v21 (11 histogramme/quantiles + 8 spatiales)."""
-    
-    # 1. Histogramme binné (8 bins)
-    hist_bins = np.apply_along_axis(
-        lambda x: np.histogram(x, bins=8, range=(0, 256))[0],
-        1,
-        X_flat
-    )
-
-    # 2. Quantiles (3 features)
-    q1 = np.percentile(X_flat, 25, axis=1)
-    median = np.median(X_flat, axis=1)
-    q3 = np.percentile(X_flat, 75, axis=1)
-
-    # 3. Features spatiales légères
-    X_img = X_flat.reshape(-1, 28, 28)
-    coords = np.indices((28, 28))
-    sum_X = np.sum(X_img, axis=(1, 2)) + 1e-6  # éviter division par 0
-
-    x_mean = np.sum(coords[1] * X_img, axis=(1, 2)) / sum_X
-    y_mean = np.sum(coords[0] * X_img, axis=(1, 2)) / sum_X
-
-    top = np.mean(X_img[:, :14, :], axis=(1, 2))
-    bottom = np.mean(X_img[:, 14:, :], axis=(1, 2))
-    left = np.mean(X_img[:, :, :14], axis=(1, 2))
-    right = np.mean(X_img[:, :, 14:], axis=(1, 2))
-
-    flip_h = np.mean((X_img - np.flip(X_img, axis=2))**2, axis=(1, 2))
-    flip_v = np.mean((X_img - np.flip(X_img, axis=1))**2, axis=(1, 2))
-
-    spatial_feats = np.vstack((x_mean, y_mean, top, bottom, left, right, flip_h, flip_v)).T
-
-    # 4. Concaténer toutes les features
-    return np.hstack((
-        hist_bins,
-        q1[:, None],
-        median[:, None],
-        q3[:, None],
-        spatial_feats
-    ))
+# Importation depuis le fichier utils
+from .utils import create_super_features_v19_spatial as create_super_features
 
 # ================================================================
 #  MLP v21 — 3 couches, 19 features
@@ -90,7 +50,6 @@ class Agent:
         self.model = None
         self.scaler = None
 
-        # Hyperparams calibrés
         self.batch_size = 128
         self.epochs = 7
         self.lr = 1.2e-3
@@ -106,7 +65,6 @@ class Agent:
         if len(y_train.shape) > 1:
             y_train = y_train.squeeze()
 
-        # --- Préparation features ---
         X_flat = X_train.reshape(X_train.shape[0], -1)
         super_features = create_super_features(X_flat)
 
@@ -151,8 +109,8 @@ class Agent:
                 break
 
     def predict(self, X_test: np.ndarray) -> np.ndarray:
-        if self.model is None:
-            raise RuntimeError("L'agent doit être entraîné avant prédiction.")
+        if self.model is None or self.scaler is None:
+            raise RuntimeError("L'agent doit être entraîné ou chargé avant prédiction.")
 
         X_test_flat = X_test.reshape(X_test.shape[0], -1)
         super_features_test = create_super_features(X_test_flat)
@@ -171,4 +129,30 @@ class Agent:
                 out = self.model(xb)
                 preds.append(out.argmax(1).cpu().numpy())
         return np.concatenate(preds)
-#98.6% mais en 73 secondes
+
+    def save(self, path: str = "artifacts/MLPv2_1"):
+        """Sauvegarde le modèle (poids) et le scaler."""
+        try:
+            os.makedirs(path, exist_ok=True)
+            torch.save(self.model.state_dict(), os.path.join(path, "model_weights.pth"))
+            joblib.dump(self.scaler, os.path.join(path, "scaler.pkl"))
+            print(f"Agent (MLPv21) sauvegardé dans {path}")
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de l'agent : {e}")
+
+    def load(self, path: str = "artifacts/MLPv2_1"):
+        """Charge un modèle (poids) et un scaler pré-entraînés."""
+        try:
+            scaler_path = os.path.join(path, "scaler.pkl")
+            weights_path = os.path.join(path, "model_weights.pth")
+            
+            if not (os.path.exists(scaler_path) and os.path.exists(weights_path)):
+                raise FileNotFoundError(f"Fichiers non trouvés dans {path}")
+
+            self.scaler = joblib.load(scaler_path)
+            self.model = Model()
+            self.model.load_state_dict(torch.load(weights_path))
+            self.model.eval()
+            print(f"Agent (MLPv21) chargé depuis {path}")
+        except Exception as e:
+            print(f"Erreur lors du chargement de l'agent : {e}")

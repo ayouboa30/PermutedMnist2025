@@ -1,6 +1,10 @@
 import numpy as np
 import lightgbm as lgb
-from sklearn.ensemble import ExtraTreesClassifier
+import os
+import joblib
+
+# Importation depuis le fichier utils
+from .utils import create_super_features_lgbm_hybrid as _extract_features
 
 class Agent:
     def __init__(self, output_dim=10, seed=None):
@@ -9,37 +13,46 @@ class Agent:
         self.model = None
         
     def reset(self):
-        self.model = None
+        # Initialise le modèle ici pour qu'il soit prêt à être entraîné
+        self.model = lgb.LGBMClassifier(
+            objective='multiclass',
+            num_class=self.output_dim,
+            n_estimators=300,
+            num_leaves=80,
+            learning_rate=0.05,
+            max_depth=12,
+            min_child_samples=10,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=0.1,
+            random_state=self.seed,
+            n_jobs=2,
+            verbose=-1,
+            force_col_wise=True
+        )
     
-    def _extract_features(self, X):
-        """Extrait 5 features statistiques ultra-rapides"""
-        # Flatten si nécessaire
+    def _preprocess_features(self, X):
+        """Prépare les features pour le modèle (flatten + extraction)."""
         if X.ndim == 3:
             X = X.reshape(X.shape[0], -1)
         
-        # 5 features rapides et discriminantes
-        features = np.column_stack([
-            np.mean(X, axis=1),           # Luminosité moyenne
-            np.std(X, axis=1),            # Contraste
-            np.max(X, axis=1),            # Pic d'intensité
-            np.sum(X > 128, axis=1),      # Nb pixels blancs
-            np.sum(X > 0, axis=1)         # Nb pixels non-nuls
-        ])
+        # Features statistiques
+        features = _extract_features(X)
         
-        return features
+        # Combine pixels + features
+        X_combined = np.hstack([X.astype(np.float32) / 255.0, features])
+        return X_combined
     
     def train(self, X_train, y_train):
         """Stratégie hybride : LightGBM sur sous-échantillon + features"""
+        self.reset()
         
-        # Flatten
         if X_train.ndim == 3:
             X_train = X_train.reshape(X_train.shape[0], -1)
-        
         y_train = y_train.ravel()
         n_samples = len(X_train)
         
-        # SUB-SAMPLING : Clé de la vitesse de Milton
-        # Entraîner sur 40% des données suffit pour >98% de précision
         sample_ratio = 0.40
         sample_size = int(n_samples * sample_ratio)
         
@@ -49,49 +62,36 @@ class Agent:
         X_sample = X_train[sample_idx]
         y_sample = y_train[sample_idx]
         
-        # Features statistiques
-        features = self._extract_features(X_sample)
-        
-        # Combine pixels + features
-        X_combined = np.hstack([X_sample.astype(np.float32) / 255.0, features])
-        
-        # LightGBM optimisé pour vitesse ET précision
-        self.model = lgb.LGBMClassifier(
-            objective='multiclass',
-            num_class=self.output_dim,
-            n_estimators=300,           # Équilibre vitesse/précision
-            num_leaves=80,              # Profondeur optimale
-            learning_rate=0.05,
-            max_depth=12,
-            min_child_samples=10,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=0.1,
-            random_state=self.seed,
-            n_jobs=2,                   # Utilise les 2 CPUs
-            verbose=-1,
-            force_col_wise=True         # Optimisation CPU
-        )
-        
+        X_combined = self._preprocess_features(X_sample)
         self.model.fit(X_combined, y_sample)
     
     def predict(self, X_test):
         """Prédiction rapide"""
         if self.model is None:
-            return np.zeros(X_test.shape[0], dtype=np.int32)
+            raise RuntimeError("L'agent doit être entraîné ou chargé avant prédiction.")
         
-        # Flatten
-        if X_test.ndim == 3:
-            X_test = X_test.reshape(X_test.shape[0], -1)
-        
-        # Features
-        features = self._extract_features(X_test)
-        
-        # Combine
-        X_combined = np.hstack([X_test.astype(np.float32) / 255.0, features])
-        
-        # Prédiction
-        predictions = self.model.predict(X_combined)
+        X_combined_test = self._preprocess_features(X_test)
+        predictions = self.model.predict(X_combined_test)
         
         return predictions.astype(np.int32)
+
+    def save(self, path: str = "artifacts/LGBEXTHybride"):
+        """Sauvegarde le modèle LGBM."""
+        try:
+            os.makedirs(path, exist_ok=True)
+            joblib.dump(self.model, os.path.join(path, "model.pkl"))
+            print(f"Agent (LGBMHybride) sauvegardé dans {path}")
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de l'agent : {e}")
+
+    def load(self, path: str = "artifacts/LGBEXTHybride"):
+        """Charge un modèle LGBM pré-entraîné."""
+        try:
+            model_path = os.path.join(path, "model.pkl")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Modèle non trouvé : {model_path}")
+            
+            self.model = joblib.load(model_path)
+            print(f"Agent (LGBMHybride) chargé depuis {path}")
+        except Exception as e:
+            print(f"Erreur lors du chargement de l'agent : {e}")

@@ -3,36 +3,12 @@ from torch import nn
 import numpy as np
 import time
 from torch.utils.data import DataLoader, TensorDataset
-from scipy import stats
 from sklearn.preprocessing import StandardScaler
+import os
+import joblib
 
-# ================================================================
-#  SUPER FEATURES v20 : Histogramme + Quantiles (RAPIDE)
-# ================================================================
-def create_super_features(X_flat: np.ndarray) -> np.ndarray:
-    """Crée les features globales v20 (Histogramme 8 bins + 3 Quantiles)."""
-    
-    # 1. Histogramme binné (8 features)
-    # Calcule l'histogramme pour chaque ligne (image)
-    # Bins: [0-32, 32-64, 64-96, ..., 224-256]
-    hist_bins = np.apply_along_axis(
-        lambda x: np.histogram(x, bins=8, range=(0, 256))[0],
-        1,
-        X_flat
-    )
-    
-    # 2. Quantiles (3 features)
-    q1 = np.percentile(X_flat, 25, axis=1)
-    median = np.median(X_flat, axis=1)
-    q3 = np.percentile(X_flat, 75, axis=1)
-
-    # Total = 11 features
-    return np.hstack((
-        hist_bins, 
-        q1[:, None],      # [:, None] pour transformer (N,) en (N, 1)
-        median[:, None], 
-        q3[:, None]
-    ))
+# Importation depuis le fichier utils
+from .utils import create_super_features_v11_hist_q as create_super_features
 
 # ================================================================
 #  MLP v20 — 3 couches, 11 features
@@ -73,7 +49,6 @@ class Agent:
         self.model = None
         self.scaler = None
 
-        # On garde les hyperparams rapides
         self.batch_size = 256
         self.epochs = 7
         self.lr = 1e-3
@@ -90,7 +65,6 @@ class Agent:
         if len(y_train.shape) > 1:
             y_train = y_train.squeeze()
 
-        # --- Préparation features ---
         X_flat = X_train.reshape(X_train.shape[0], -1)
         super_features = create_super_features(X_flat)
 
@@ -130,15 +104,14 @@ class Agent:
                 optimizer.step()
             scheduler.step()
 
-            # Limite de 55 secondes
             if time.time() - start > 55:
                 print("⏱️ Temps limite atteint (55s), arrêt anticipé.")
                 break
 
     def predict(self, X_test: np.ndarray) -> np.ndarray:
         """Prédit les classes sur X_test."""
-        if self.model is None:
-            raise RuntimeError("L'agent doit être entraîné avant prédiction.")
+        if self.model is None or self.scaler is None:
+            raise RuntimeError("L'agent doit être entraîné ou chargé avant prédiction.")
 
         X_test_flat = X_test.reshape(X_test.shape[0], -1)
         super_features_test = create_super_features(X_test_flat)
@@ -158,3 +131,29 @@ class Agent:
                 preds.append(out.argmax(1).cpu().numpy())
         return np.concatenate(preds)
 
+    def save(self, path: str = "artifacts/BestAgentMLP"):
+        """Sauvegarde le modèle (poids) et le scaler."""
+        try:
+            os.makedirs(path, exist_ok=True)
+            torch.save(self.model.state_dict(), os.path.join(path, "model_weights.pth"))
+            joblib.dump(self.scaler, os.path.join(path, "scaler.pkl"))
+            print(f"Agent (MLP) sauvegardé dans {path}")
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de l'agent : {e}")
+
+    def load(self, path: str = "artifacts/BestAgentMLP"):
+        """Charge un modèle (poids) et un scaler pré-entraînés."""
+        try:
+            scaler_path = os.path.join(path, "scaler.pkl")
+            weights_path = os.path.join(path, "model_weights.pth")
+            
+            if not (os.path.exists(scaler_path) and os.path.exists(weights_path)):
+                raise FileNotFoundError(f"Fichiers non trouvés dans {path}")
+
+            self.scaler = joblib.load(scaler_path)
+            self.model = Model()
+            self.model.load_state_dict(torch.load(weights_path))
+            self.model.eval()
+            print(f"Agent (MLP) chargé depuis {path}")
+        except Exception as e:
+            print(f"Erreur lors du chargement de l'agent : {e}")

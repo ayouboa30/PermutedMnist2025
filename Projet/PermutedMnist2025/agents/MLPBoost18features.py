@@ -5,41 +5,11 @@ import time
 from torch.utils.data import DataLoader, TensorDataset
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
+import os
+import joblib
 
-# ================================================================
-#  SUPER FEATURES v22 : Le "Paquet Complet" (18 Features)
-# ================================================================
-def create_super_features(X_flat: np.ndarray) -> np.ndarray:
-    """Crée les 18 'super-features' globales (v22)."""
-    
-    # --- 1. Stats de Base (7 features) ---
-    mean = np.mean(X_flat, axis=1)
-    std = np.std(X_flat, axis=1)
-    median = np.median(X_flat, axis=1)
-    count_zero = np.count_nonzero(X_flat == 0, axis=1)
-    count_max = np.count_nonzero(X_flat == 255, axis=1)
-    skew = stats.skew(X_flat, axis=1)
-    kurt = stats.kurtosis(X_flat, axis=1)
-
-    # --- 2. Histogramme (8 features) ---
-    hist_bins = np.apply_along_axis(
-        lambda x: np.histogram(x, bins=8, range=(0, 256))[0],
-        1,
-        X_flat
-    )
-    
-    # --- 3. Quantiles (3 features) ---
-    q1 = np.percentile(X_flat, 25, axis=1)
-    q3 = np.percentile(X_flat, 75, axis=1)
-    iqr = q3 - q1 # Écart interquartile
-
-    # Total = 7 + 8 + 3 = 18 features
-    return np.hstack((
-        mean[:, None], std[:, None], median[:, None], 
-        count_zero[:, None], count_max[:, None], skew[:, None], kurt[:, None],
-        hist_bins, 
-        q1[:, None], q3[:, None], iqr[:, None]
-    ))
+# Importation depuis le fichier utils
+from .utils import create_super_features_v18_all as create_super_features
 
 # ================================================================
 #  MLP v22 — 2 couches, 18 features
@@ -48,7 +18,6 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         
-        # On garde le modèle léger
         hidden_sizes = [256, 256] 
         dropout = 0.05
         d_in = 28 ** 2 + 18  # 784 pixels + 18 features
@@ -66,7 +35,9 @@ class Model(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-==
+# ================================================================
+#  AGENT MLP v22
+# ================================================================
 class Agent:
     """Agent MLP (v22) — 2 couches + 18 features (Le Paquet Complet)."""
 
@@ -81,7 +52,7 @@ class Agent:
         self.scaler = None
 
         self.batch_size = 256
-        self.epochs = 7 # On garde 7 époques
+        self.epochs = 7
         self.lr = 1e-3
         self.weight_decay = 1e-4
 
@@ -96,7 +67,6 @@ class Agent:
         if len(y_train.shape) > 1:
             y_train = y_train.squeeze()
 
-        # --- Préparation features ---
         X_flat = X_train.reshape(X_train.shape[0], -1)
         super_features = create_super_features(X_flat)
 
@@ -136,15 +106,14 @@ class Agent:
                 optimizer.step()
             scheduler.step()
 
-            # On garde le "coupe-circuit" à 55s
             if time.time() - start > 55:
                 print("⏱️ Temps limite atteint (55s), arrêt anticipé.")
                 break
 
     def predict(self, X_test: np.ndarray) -> np.ndarray:
         """Prédit les classes sur X_test."""
-        if self.model is None:
-            raise RuntimeError("L'agent doit être entraîné avant prédiction.")
+        if self.model is None or self.scaler is None:
+            raise RuntimeError("L'agent doit être entraîné ou chargé avant prédiction.")
 
         X_test_flat = X_test.reshape(X_test.shape[0], -1)
         super_features_test = create_super_features(X_test_flat)
@@ -163,4 +132,30 @@ class Agent:
                 out = self.model(xb)
                 preds.append(out.argmax(1).cpu().numpy())
         return np.concatenate(preds)
-        #98.4 en 55 secondes
+
+    def save(self, path: str = "artifacts/MLPBoost18features"):
+        """Sauvegarde le modèle (poids) et le scaler."""
+        try:
+            os.makedirs(path, exist_ok=True)
+            torch.save(self.model.state_dict(), os.path.join(path, "model_weights.pth"))
+            joblib.dump(self.scaler, os.path.join(path, "scaler.pkl"))
+            print(f"Agent (MLP18) sauvegardé dans {path}")
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de l'agent : {e}")
+
+    def load(self, path: str = "artifacts/MLPBoost18features"):
+        """Charge un modèle (poids) et un scaler pré-entraînés."""
+        try:
+            scaler_path = os.path.join(path, "scaler.pkl")
+            weights_path = os.path.join(path, "model_weights.pth")
+            
+            if not (os.path.exists(scaler_path) and os.path.exists(weights_path)):
+                raise FileNotFoundError(f"Fichiers non trouvés dans {path}")
+
+            self.scaler = joblib.load(scaler_path)
+            self.model = Model()
+            self.model.load_state_dict(torch.load(weights_path))
+            self.model.eval()
+            print(f"Agent (MLP18) chargé depuis {path}")
+        except Exception as e:
+            print(f"Erreur lors du chargement de l'agent : {e}")
