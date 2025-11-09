@@ -1,27 +1,35 @@
-PERMUTEDMNIST2025.GIT
+# Challenge Permuted MNIST 2025
 
+[Python Version 3.9+](https://www.python.org/downloads/)  
+[License MIT](https://opensource.org/licenses/MIT)  
+Build Status: passing  
 
+Projet développé par **Ayoub Oulad Ali** et **Mohy Mabrouk** (MS2A).
 
-Vue d’ensemble
+## Vue d’ensemble
 
-Ce dépôt contient l’implémentation et l’évaluation de plusieurs agents pour le challenge Permuted MNIST.
-L’objectif est de classifier les chiffres MNIST sur des tâches où les pixels et les étiquettes sont permutés aléatoirement, avec une contrainte de 60 secondes par tâche.
+Ce dépôt contient l'implémentation et l'évaluation de plusieurs agents pour le challenge **Permuted MNIST**. L'objectif est de classifier les chiffres MNIST sur des tâches où les pixels et les étiquettes sont permutés aléatoirement, avec une contrainte stricte de **60 secondes par tâche**.
 
-Ce projet est réalisé par Ayoub Oulad Ali et Mohy Mabrouk, et contient tous les livrables nécessaires pour l’évaluation : package Python, outils de benchmark, rapports et bonus de recherche.
+Le projet inclut les livrables suivants : package Python, outils de benchmark, rapports d'analyse et une implémentation bonus de recherche.
 
-Fonctionnalités
+## Fonctionnalités
 
-Agents Multiples : MLP, ExtraTrees, KNNFaiss, LGBM
+- **Agents multiples** :
+  - MLP (Multi-Layer Perceptron)
+  - ExtraTrees
+  - KNN (avec indexation [Faiss](https://github.com/facebookresearch/faiss))
+  - LGBM (LightGBM)
+- **Évaluation complète** :
+  - Précision (accuracy)
+  - Temps d'exécution (réel et CPU)
+  - Pic d'utilisation mémoire (RAM)
+- **Reproductibilité** : Notebooks dédiés (`run_benchmark.ipynb` et `Report.ipynb`) pour lancer les tests et générer les analyses.
+- **Package installable** : Le projet est structuré comme un package Python installable via `pyproject.toml`.
+- **Bonus recherche** : Implémentation du papier **"Naive Rehearsal"** pour l'apprentissage continu (Continual Learning).
 
-Évaluation Complète : précision, temps réel/CPU, pic mémoire (RAM)
+## Structure du projet
 
-Reproductibilité : notebooks run_benchmark.ipynb et Report.ipynb
-
-Package Installable : via pyproject.toml
-
-Bonus Recherche : implémentation du papier Naive Rehearsal (apprentissage continu)
-
-Structure
+```text
 Projet/
 ├── .gitignore
 ├── Report.ipynb
@@ -50,7 +58,7 @@ Projet/
 ├── requirements.txt
 ├── run_benchmark.ipynb
 └── soumissions/
-
+```
 
 Prérequis
 
