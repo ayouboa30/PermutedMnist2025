@@ -35,9 +35,7 @@ class Model(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-# ================================================================
-#  AGENT MLP v22
-# ================================================================
+
 class Agent:
     """Agent MLP (v22) — 2 couches + 18 features (Le Paquet Complet)."""
 

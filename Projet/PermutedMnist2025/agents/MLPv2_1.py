@@ -11,9 +11,7 @@ import joblib
 # Importation depuis le fichier utils
 from .utils import create_super_features_v19_spatial as create_super_features
 
-# ================================================================
-#  MLP v21 — 3 couches, 19 features
-# ================================================================
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -34,9 +32,7 @@ class Model(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-# ================================================================
-#  AGENT MILTON v21 — 19 Features, ~55s
-# ================================================================
+
 class Agent:
     """Agent MLP (v21) — 3 couches + 19 features, optimisé CPU 2 threads."""
 

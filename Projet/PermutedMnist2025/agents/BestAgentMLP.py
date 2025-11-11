@@ -10,9 +10,7 @@ import joblib
 # Importation depuis le fichier utils
 from .utils import create_super_features_v11_hist_q as create_super_features
 
-# ================================================================
-#  MLP v20 — 3 couches, 11 features
-# ================================================================
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -33,9 +31,6 @@ class Model(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-# ================================================================
-#  AGENT MILTON v20 — 11 Features, Limite 55s
-# ================================================================
 class Agent:
     """Agent MLP (v20) — 3 couches + 11 features (Histogramme), 55s."""
 
