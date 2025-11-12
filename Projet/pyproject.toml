@@ -16,18 +16,28 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-
+# === DÉPENDANCES PRINCIPALES (Runtime) ===
+# Celles nécessaires pour faire tourner l'Agent
 dependencies = [
     "numpy",
     "torch",
     "scikit-learn",
-    "pandas",
-    "matplotlib",
-    "seaborn",
-    "jupyter",
-    "tensorflow" # Optionnel, pour le dataset original dans le rapport
+    "joblib",           # (pour save/load)
+    "pandas",           # (Gardé ici, utile pour les résultats)
+    "tensorflow"        # (Gardé ici, comme 'optionnel')
 ]
+
+# === DÉPENDANCES OPTIONNELLES (Dev & Test) ===
+[project.optional-dependencies]
+dev = [
+    "pytest",           # (pour les tests)
+    "matplotlib",       # (Déplacé ici, pour analyse)
+    "seaborn",          # (Déplacé ici, pour analyse)
+    "jupyter"           # (Déplacé ici, pour les notebooks)
+]
+
 
 [project.urls]
 Homepage = "https://github.com/Ayouboa30/PermutedMnist2025"
-Issues = "https://github.com/votre_utilisateur/PermutedMnist2025/issues"
+Issues = "https://github.com/Ayouboa30/PermutedMnist2025/issues" 
+# (J'ai corrigé votre URL 'Issues' pour pointer vers votre repo)
